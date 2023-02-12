@@ -1097,7 +1097,9 @@ class CameraManager(object):
             acc_x, acc_y, acc_z = self.world.imu_sensor.accelerometer
             gyro_x, gyro_y, gyro_z = self.world.imu_sensor.gyroscope
 
-            values.append(f"{image.frame}.jpg") # filename
+            filename = f"{self.world.args.prefix}{image.frame}.jpg"
+
+            values.append(filename) # filename
             values.append(str(c.throttle)) # throttle
             values.append(str(c.steer)) # steer
             values.append(str(c.brake)) # brake
@@ -1134,7 +1136,7 @@ class CameraManager(object):
             # Save every n-th Data Point
             if int(image.frame) % self.world.args.sampling_rate == 0 and self.stop_counter <= self.world.args.max_stop_frames:
                 # Write Data
-                cv2.imwrite(os.path.join(img_dir, f"{image.frame}.jpg"), array)
+                cv2.imwrite(os.path.join(img_dir, filename), array)
                 if os.path.exists(os.path.join(metrics_dir, metrics_filename)):
                     with open(os.path.join(metrics_dir, metrics_filename), 'a') as f:
                         writer = csv.writer(f)
@@ -1220,7 +1222,11 @@ def main():
         metavar='N',
         default=30,
         type=int,
-        help='Save every n-th data point')    
+        help='Save every n-th data point')  
+    argparser.add_argument(
+        '--prefix',
+        default='',
+        help='Add a prefix in front of the data filename so that the data can be merged without conflict later')
     argparser.add_argument(
         '-p', '--port',
         metavar='P',
