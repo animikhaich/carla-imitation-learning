@@ -1097,7 +1097,7 @@ class CameraManager(object):
             acc_x, acc_y, acc_z = self.world.imu_sensor.accelerometer
             gyro_x, gyro_y, gyro_z = self.world.imu_sensor.gyroscope
 
-            filename = f"{self.world.args.prefix}{image.frame}.jpg"
+            filename = f"{self.world.args.prefix}_{image.frame}.jpg"
 
             values.append(filename) # filename
             values.append(str(c.throttle)) # throttle
