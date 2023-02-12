@@ -86,6 +86,8 @@ import math
 import random
 import re
 import weakref
+import numpy as np
+import cv2
 
 try:
     import pygame
@@ -196,7 +198,6 @@ def main():
     except KeyboardInterrupt:
         print('\nCancelled by user. Bye!')
 
-
 def local_game_loop(args):
     pygame.init()
     pygame.font.init()
@@ -214,16 +215,17 @@ def local_game_loop(args):
         world = World(client.get_world(), hud, args)
         controller = KeyboardControl(world, args.autopilot)
 
+
         clock = pygame.time.Clock()
         while True:
             clock.tick_busy_loop(60)
             if controller.parse_events(client, world, clock):
                 return
+
             world.tick(clock)
             world.render(display)
             pygame.display.flip()
-            
-            # print(client, display, hud, world, controller, clock)
+
 
 
     finally:
