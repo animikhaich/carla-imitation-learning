@@ -179,6 +179,7 @@ class World(object):
         self.camera_manager = None
         self._weather_presets = find_weather_presets()
         self._weather_index = 0
+        self.args = args
         self._actor_filter = args.filter
         self._gamma = args.gamma
         self.restart()
@@ -906,6 +907,7 @@ class CameraManager(object):
         self._parent = parent_actor
         self.hud = hud
         self.recording = False
+        self.stop_counter = 0
         bound_y = 0.5 + self._parent.bounding_box.extent.y
         Attachment = carla.AttachmentType
         self._camera_transforms = [
@@ -1123,21 +1125,28 @@ class CameraManager(object):
             values.append(str(self.world.gnss_sensor.lon)) # gnss_y
             values.append(str(t.location.z)) # height
 
-            # Write Data
-            cv2.imwrite(os.path.join(img_dir, f"{image.frame}.jpg"), array)
-            if os.path.exists(os.path.join(metrics_dir, metrics_filename)):
-                with open(os.path.join(metrics_dir, metrics_filename), 'a') as f:
-                    writer = csv.writer(f)
-                    assert len(columns) == len(values)
-                    writer.writerow(values)
+            # If the car is standing for a long time, stop saving the data after a certain duration.
+            if 3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2) <= 1e-5:
+                self.stop_counter += 1
             else:
-                with open(os.path.join(metrics_dir, metrics_filename), 'w') as f:
-                    writer = csv.writer(f)
-                    assert len(columns) == len(values)
-                    writer.writerow(columns)
-                    writer.writerow(values)
+                self.stop_counter = 0
 
-
+            # Save every n-th Data Point
+            if int(image.frame) % self.world.args.sampling_rate == 0 and self.stop_counter <= self.world.args.max_stop_frames:
+                # Write Data
+                cv2.imwrite(os.path.join(img_dir, f"{image.frame}.jpg"), array)
+                if os.path.exists(os.path.join(metrics_dir, metrics_filename)):
+                    with open(os.path.join(metrics_dir, metrics_filename), 'a') as f:
+                        writer = csv.writer(f)
+                        assert len(columns) == len(values)
+                        writer.writerow(values)
+                else:
+                    with open(os.path.join(metrics_dir, metrics_filename), 'w') as f:
+                        writer = csv.writer(f)
+                        assert len(columns) == len(values)
+                        writer.writerow(columns)
+                        writer.writerow(values)
+            
 
 
 # ==============================================================================
@@ -1200,6 +1209,18 @@ def main():
         metavar='H',
         default='127.0.0.1',
         help='IP of the host server (default: 127.0.0.1)')
+    argparser.add_argument(
+        '-s', '--max_stop_frames',
+        metavar='S',
+        default=10,
+        type=int,
+        help='Maximum Number of Frames to record when the vehicle speed is 0.')
+    argparser.add_argument(
+        '-n', '--sampling_rate',
+        metavar='N',
+        default=30,
+        type=int,
+        help='Save every n-th data point')    
     argparser.add_argument(
         '-p', '--port',
         metavar='P',
