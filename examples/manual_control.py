@@ -86,6 +86,9 @@ import math
 import random
 import re
 import weakref
+import cv2
+import numpy as np
+import csv
 
 try:
     import pygame
@@ -228,7 +231,7 @@ class World(object):
         self.lane_invasion_sensor = LaneInvasionSensor(self.player, self.hud)
         self.gnss_sensor = GnssSensor(self.player)
         self.imu_sensor = IMUSensor(self.player)
-        self.camera_manager = CameraManager(self.player, self.hud, self._gamma)
+        self.camera_manager = CameraManager(self.player, self.hud, self._gamma, self)
         self.camera_manager.transform_index = cam_pos_index
         self.camera_manager.set_sensor(cam_index, notify=False)
         actor_type = get_actor_display_name(self.player)
@@ -896,7 +899,8 @@ class RadarSensor(object):
 
 
 class CameraManager(object):
-    def __init__(self, parent_actor, hud, gamma_correction):
+    def __init__(self, parent_actor, hud, gamma_correction, world=None):
+        self.world = world
         self.sensor = None
         self.surface = None
         self._parent = parent_actor
@@ -905,7 +909,7 @@ class CameraManager(object):
         bound_y = 0.5 + self._parent.bounding_box.extent.y
         Attachment = carla.AttachmentType
         self._camera_transforms = [
-            (carla.Transform(carla.Location(x=0, z=2.0), carla.Rotation(pitch=0)), Attachment.Rigid),
+            (carla.Transform(carla.Location(x=0, z=2.5), carla.Rotation(pitch=0)), Attachment.Rigid),
             (carla.Transform(carla.Location(x=-5.5, z=2.5), carla.Rotation(pitch=8.0)), Attachment.SpringArm),
             (carla.Transform(carla.Location(x=1.6, z=1.7)), Attachment.Rigid),
             (carla.Transform(carla.Location(x=5.5, y=1.5, z=1.5)), Attachment.SpringArm),
@@ -1021,7 +1025,119 @@ class CameraManager(object):
             array = array[:, :, ::-1]
             self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
         if self.recording:
-            image.save_to_disk('_out/%08d' % image.frame)
+            # Create Directories for Storage
+            img_dir = 'data/rgb'
+            metrics_dir = 'data/metrics'
+            metrics_filename = 'metrics.csv'
+
+            if not os.path.isdir(img_dir):
+                os.makedirs(img_dir)
+            if not os.path.isdir(metrics_dir):
+                os.makedirs(metrics_dir)
+
+            # Process and extract RGB image, and save it
+            image.convert(self.sensors[self.index][1])
+            array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
+            array = np.reshape(array, (image.height, image.width, 4))
+            array = array[:, :, :3]
+            
+            
+            # Get the data from the world and the ego car
+
+            columns = [
+                'filename',
+                'throttle',
+                'steer',
+                'break',
+                'reverse',
+                'hand_bake',
+                'manual_gear_shift',
+                'gear',
+                'simulation_time',
+                'simulation_time_secs',
+                'speed_raw_x',
+                'speed_raw_y',
+                'speed_raw_z',
+                'speed_kmph',
+                'compass',
+                'heading',
+                'accelerometer_x',
+                'accelerometer_y',
+                'accelerometer_z',
+                'gyroscope_x',
+                'gyroscope_y',
+                'gyroscope_z',
+                'location_x',
+                'location_y',
+                'gnss_x',
+                'gnss_y',
+                'height',
+            ]
+            values = []
+
+            t = self._parent.get_transform()
+            v = self._parent.get_velocity()
+            c = self._parent.get_control()
+
+            compass = self.world.imu_sensor.compass
+
+            if compass > 270.5 or compass < 89.5:
+                heading = 'N'
+            elif 90.5 < compass < 269.5:
+                heading = 'S'
+            elif 0.5 < compass < 179.5:
+                heading = 'E'
+            elif 180.5 < compass < 359.5:
+                heading = 'W'
+            else:
+                heading = ''
+
+            acc_x, acc_y, acc_z = self.world.imu_sensor.accelerometer
+            gyro_x, gyro_y, gyro_z = self.world.imu_sensor.gyroscope
+
+            values.append(f"{image.frame}.jpg") # filename
+            values.append(str(c.throttle)) # throttle
+            values.append(str(c.steer)) # steer
+            values.append(str(c.brake)) # brake
+            values.append(str(c.reverse)) # reverse
+            values.append(str(c.hand_brake)) # hand_brake
+            values.append(str(c.manual_gear_shift)) # manual_gear_shift
+            values.append(str(c.gear)) # gear
+            values.append(str(datetime.timedelta(seconds=int(self.hud.simulation_time)))) # simulation_time
+            values.append(str(self.hud.simulation_time)) # simulation_time_secs
+            values.append(str(v.x)) # speed_raw_x
+            values.append(str(v.y)) # speed_raw_y
+            values.append(str(v.z)) # speed_raw_z
+            values.append(str(3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2))) # speed_kmph
+            values.append(str(compass)) # compass
+            values.append(str(heading)) # heading
+            values.append(str(acc_x)) # accelerometer_x
+            values.append(str(acc_y)) # accelerometer_y
+            values.append(str(acc_z)) # accelerometer_z
+            values.append(str(gyro_x)) # gyroscope_x
+            values.append(str(gyro_y)) # gyroscope_y
+            values.append(str(gyro_z)) # gyroscope_z
+            values.append(str(t.location.x)) # location_x
+            values.append(str(t.location.y)) # location_y
+            values.append(str(self.world.gnss_sensor.lat)) # gnss_x
+            values.append(str(self.world.gnss_sensor.lon)) # gnss_y
+            values.append(str(t.location.z)) # height
+
+            # Write Data
+            cv2.imwrite(os.path.join(img_dir, f"{image.frame}.jpg"), array)
+            if os.path.exists(os.path.join(metrics_dir, metrics_filename)):
+                with open(os.path.join(metrics_dir, metrics_filename), 'a') as f:
+                    writer = csv.writer(f)
+                    assert len(columns) == len(values)
+                    writer.writerow(values)
+            else:
+                with open(os.path.join(metrics_dir, metrics_filename), 'w') as f:
+                    writer = csv.writer(f)
+                    assert len(columns) == len(values)
+                    writer.writerow(columns)
+                    writer.writerow(values)
+
+
 
 
 # ==============================================================================
