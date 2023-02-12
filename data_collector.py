@@ -1099,9 +1099,9 @@ class CameraManager(object):
             values.append(str(c.throttle)) # throttle
             values.append(str(c.steer)) # steer
             values.append(str(c.brake)) # brake
-            values.append(str(c.reverse)) # reverse
-            values.append(str(c.hand_brake)) # hand_brake
-            values.append(str(c.manual_gear_shift)) # manual_gear_shift
+            values.append(str(int(c.reverse))) # reverse
+            values.append(str(int(c.hand_brake))) # hand_brake
+            values.append(str(int(c.manual_gear_shift))) # manual_gear_shift
             values.append(str(c.gear)) # gear
             values.append(str(datetime.timedelta(seconds=int(self.hud.simulation_time)))) # simulation_time
             values.append(str(self.hud.simulation_time)) # simulation_time_secs
