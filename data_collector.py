@@ -1127,15 +1127,14 @@ class CameraManager(object):
             values.append(str(self.world.gnss_sensor.lon)) # gnss_y
             values.append(str(t.location.z)) # height
 
+            # If the car is standing for a long time, stop saving the data after a certain duration.
+            if 3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2) <= 1e-5:
+                self.stop_counter += 1
+            else:
+                self.stop_counter = 0
 
             # Save every n-th Data Point
             if int(image.frame) % self.world.args.sampling_rate == 0 and self.stop_counter <= self.world.args.max_stop_frames:
-                # If the car is standing for a long time, stop saving the data after a certain duration.
-                if 3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2) <= 1e-5:
-                    self.stop_counter += 1
-                else:
-                    self.stop_counter = 0
-
                 # Write Data
                 cv2.imwrite(os.path.join(img_dir, filename), array)
                 if os.path.exists(os.path.join(metrics_dir, metrics_filename)):
