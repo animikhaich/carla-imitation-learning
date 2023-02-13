@@ -47,7 +47,7 @@ class CarlaDataset(Dataset):
     def __len__(self):
         return len(self.image_filenames)
 
-    def action_encoder(self, throttle, steer, brake):
+    def actions_to_classes(self, throttle, steer, brake):
         # Discretize Steering 
         if steer < -self.delta:
             steer = -1
@@ -87,8 +87,8 @@ class CarlaDataset(Dataset):
         image = Image.open(os.path.join(self.data_dir, data.filename))
         image = self.transform(image) if self.transform else image
 
-        action = self.action_encoder(data.throttle, data.steer, data.brake)
-        label = torch.tensor(self.action_to_idx(action))
+        action = self.actions_to_classes(data.throttle, data.steer, data.brake)
+        label = torch.tensor(self.action_to_idx[action])
         label = torch.nn.functional.one_hot(label, num_classes=len(self.action_to_idx))
 
         return (image, label)
