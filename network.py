@@ -2,25 +2,23 @@ import torch
 import torch.nn as nn
 
 class ClassificationNetwork(torch.nn.Module):
-    def __init__(self, input_size=(96, 96, 3), num_classes=7):
+    def __init__(self, input_size=(96, 96, 3)):
         """
         Implementation of the network layers. The image size of the input
         observations is 96x96 pixels.
         """
         super().__init__()
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.num_classes = num_classes
         self.input_size = input_size
-        self.init_model().to(self.device)
-
+        
         self.idx_to_action = {
-            0: (1, 0, 0), # Throttle
-            1: (1, -1, 0), # Throttle Left
-            2: (1, 1, 0), # Throttle Right
-            3: (0, 0, 1), # Brake
-            4: (0, -1, 1), # Brake Left
-            5: (0, 1, 1), # Brake Left
-            6: (0, 0, 0) # OOD
+            0: (1., 0., 0.), # Throttle
+            1: (1., -1., 0.), # Throttle Left
+            2: (1., 1., 0.), # Throttle Right
+            3: (0., 0., 1.), # Brake
+            4: (0., -1., 1.), # Brake Left
+            5: (0., 1., 1.), # Brake Left
+            6: (0., 0., 0.) # OOD
         }
 
         self.action_to_idx = {
@@ -32,32 +30,37 @@ class ClassificationNetwork(torch.nn.Module):
             "brake_right": 5,
             "OOD": 6
         }
+
+        self.num_classes = len(self.idx_to_action)
+
+        self.init_model()
+
     
 
     def init_model(self):
         num_filters = 32
 
-        self.model = nn.Sequential(
-            nn.Conv2(min(self.input_size), num_filters, kernel_size=5, stride=2),
+        self.fe = nn.Sequential(
+            nn.Conv2d(min(self.input_size), num_filters, kernel_size=5, stride=2),
             nn.BatchNorm2d(num_filters),
             nn.ReLU(),
             
-            nn.Conv2(num_filters, num_filters * 2, kernel_size=3, stride=1),
+            nn.Conv2d(num_filters, num_filters * 2, kernel_size=3, stride=1),
             nn.BatchNorm2d(num_filters * 2),
             nn.ReLU(),
             
-            nn.Conv2(num_filters * 2, num_filters * 4, kernel_size=3, stride=1),
+            nn.Conv2d(num_filters * 2, num_filters * 4, kernel_size=3, stride=1),
             nn.BatchNorm2d(num_filters * 4),
             nn.ReLU(),
+        )
 
-            nn.Flatten(),
-            nn.Linear(num_filters * 4 * 42 * 42, 512),
+        self.clf = nn.Sequential(
+            nn.Linear(225792, 2048),
             nn.ReLU(),
 
-            nn.Linear(512, self.num_classes),
-            nn.Softmax(dim=1)
+            nn.Linear(2048, self.num_classes),
+            nn.LeakyReLU(negative_slope=0.2),
         )
-        return self.model
 
 
 
@@ -68,7 +71,10 @@ class ClassificationNetwork(torch.nn.Module):
         observation:   torch.Tensor of size (batch_size, height, width, channel)
         return         torch.Tensor of size (batch_size, C)
         """
-        self.model(observation)
+        x = self.fe(observation)
+        x = torch.flatten(x, 1)
+        x = self.clf(x)
+        return x
 
     def actions_to_classes(self, actions):
         """

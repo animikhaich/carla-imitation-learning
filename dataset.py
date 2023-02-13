@@ -5,12 +5,13 @@ from PIL import Image
 import numpy as np
 
 import torch
+import torchvision
 from torchvision import transforms
 from torch.utils.data import Dataset
 
 
 class CarlaDataset(Dataset):
-    def __init__(self, data_dir, labels, transform=None, image_size=(224, 224)):
+    def __init__(self, data_dir, labels, transform=None, image_size=(96, 96)):
         self.data_dir = data_dir
         self.image_filenames = os.listdir(data_dir)
         self.labels = pd.read_csv(labels)
@@ -20,8 +21,7 @@ class CarlaDataset(Dataset):
         else:
             self.transform = transforms.Compose([
                 transforms.Resize(image_size),
-                transforms.ToTensor(),
-                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             ])
         
         self.idx_to_action = {
@@ -84,21 +84,22 @@ class CarlaDataset(Dataset):
         return    (image, action), both in torch.Tensor format
         """
         data = self.labels.iloc[idx]
-        image = Image.open(os.path.join(self.data_dir, data.filename))
+        image = torchvision.io.read_image(os.path.join(self.data_dir, data.filename))
+        image = image.type(torch.float)
         image = self.transform(image) if self.transform else image
 
         action = self.actions_to_classes(data.throttle, data.steer, data.brake)
         label = torch.tensor(self.action_to_idx[action])
         label = torch.nn.functional.one_hot(label, num_classes=len(self.action_to_idx))
 
-        return (image, label)
+        return (image, label.type(torch.DoubleTensor))
 
 
 
 
-def get_dataloader(data_dir, labels, batch_size, num_workers=4, shuffle=True, **kwargs):
+def get_dataloader(data_dir, labels, batch_size, num_workers=32, shuffle=True):
     return torch.utils.data.DataLoader(
-                CarlaDataset(data_dir=data_dir, labels=labels **kwargs),
+                CarlaDataset(data_dir=data_dir, labels=labels),
                 batch_size=batch_size,
                 num_workers=num_workers,
                 shuffle=shuffle
