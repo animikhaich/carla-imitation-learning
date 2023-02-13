@@ -16,11 +16,15 @@ def train(data_folder, labels_path, save_path):
     Function for training the network. You can make changes (e.g., add validation dataloader, change batch_size and #of epoch) accordingly.
     """
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    infer_action = ClassificationNetwork().to(device)
+    if device == 'cuda':
+        infer_action = torch.nn.DataParallel(ClassificationNetwork(), device_ids=[0, 1]).to(device)
+    else:
+        infer_action = ClassificationNetwork().to(device)
     optimizer = torch.optim.Adam(infer_action.parameters(), lr=1e-2)
 
     nr_epochs = 100
-    batch_size = 64
+    best_loss = 10e10
+    batch_size = 128 * 2
     nr_of_classes = 0  # needs to be changed
     start_time = time.time()
 
@@ -49,8 +53,21 @@ def train(data_folder, labels_path, save_path):
         print("Epoch %5d\t[Train]\tloss: %.6f \tETA: +%fs" % (
             epoch + 1, total_loss, time_left))
 
-    torch.save(infer_action, save_path)
+        best_loss = save_model("small_v1", infer_action, total_loss, best_loss, mode="lowest")
 
+def save_model(name, model, val_metric, best_metric, mode='lowest'):
+    torch.save(model, f'{name}_last.pt')
+    if mode == 'lowest':
+        if val_metric <= best_metric:
+            print(f"New {val_metric} <= Old {best_metric}. Saving: {f'{name}_best.pt'}")
+            torch.save(model, f'{name}_best.pt')
+            return val_metric
+    elif mode == 'highest':
+        if val_metric >= best_metric:
+            print(f"New {val_metric} >= Old {best_metric}. Saving: {f'{name}_best.pt'}")
+            torch.save(model, f'{name}_best.pt')
+            return val_metric
+    return best_metric
 
 def cross_entropy_loss(batch_out, batch_gt):
     """
