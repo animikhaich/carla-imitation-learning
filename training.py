@@ -21,7 +21,7 @@ def train(data_folder, save_path):
     nr_of_classes = 0  # needs to be changed
     start_time = time.time()
 
-    train_loader = get_dataloader(data_folder， batch_size)
+    train_loader = get_dataloader(data_folder, batch_size)
 
     for epoch in range(nr_epochs):
         total_loss = 0

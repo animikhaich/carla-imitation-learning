@@ -1050,7 +1050,7 @@ class CameraManager(object):
                 'filename',
                 'throttle',
                 'steer',
-                'break',
+                'brake',
                 'reverse',
                 'hand_bake',
                 'manual_gear_shift',
