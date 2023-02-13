@@ -15,9 +15,10 @@ def train(data_folder, labels_path, save_path):
     """
     Function for training the network. You can make changes (e.g., add validation dataloader, change batch_size and #of epoch) accordingly.
     """
+    device_id = [0, 2]
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     if device == 'cuda':
-        infer_action = torch.nn.DataParallel(ClassificationNetwork(), device_ids=[0, 1]).to(device)
+        infer_action = torch.nn.DataParallel(ClassificationNetwork(), device_ids=device_id).to(device)
     else:
         infer_action = ClassificationNetwork().to(device)
     optimizer = torch.optim.Adam(infer_action.parameters(), lr=1e-2)
