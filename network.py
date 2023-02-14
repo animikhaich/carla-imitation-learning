@@ -127,5 +127,5 @@ class ClassificationNetwork(torch.nn.Module):
         scores:         python list of torch.Tensors of size C
         return          (float, float, float)
         """
-        idx = torch.argmax(scores, axis=1)
+        idx = torch.argmax(scores, axis=1).item()
         return self.idx_to_action[idx]
