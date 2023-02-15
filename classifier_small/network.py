@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torchvision
 
 class ClassificationNetwork(torch.nn.Module):
     def __init__(self, input_size=(96, 96, 3)):
@@ -39,18 +38,29 @@ class ClassificationNetwork(torch.nn.Module):
     
 
     def init_model(self):
-        self.model = torchvision.models.resnet18(weights='DEFAULT')
-        self.model.fc = torch.nn.Sequential(
-            torch.nn.Linear(self.model.fc.in_features, 2048),
-            nn.ReLU(),
+        num_filters = 32
 
-            torch.nn.Linear(2048, 256),
+        self.fe = nn.Sequential(
+            nn.Conv2d(min(self.input_size), num_filters, kernel_size=5, stride=2),
+            nn.BatchNorm2d(num_filters),
             nn.ReLU(),
-
-            nn.Linear(256, self.num_classes),
-            nn.LeakyReLU(negative_slope=0.2),
+            
+            nn.Conv2d(num_filters, num_filters * 2, kernel_size=3, stride=1),
+            nn.BatchNorm2d(num_filters * 2),
+            nn.ReLU(),
+            
+            nn.Conv2d(num_filters * 2, num_filters * 4, kernel_size=3, stride=1),
+            nn.BatchNorm2d(num_filters * 4),
+            nn.ReLU(),
         )
 
+        self.clf = nn.Sequential(
+            nn.Linear(225792, 2048),
+            nn.ReLU(),
+
+            nn.Linear(2048, self.num_classes),
+            nn.LeakyReLU(negative_slope=0.2),
+        )
 
 
 
@@ -61,8 +71,10 @@ class ClassificationNetwork(torch.nn.Module):
         observation:   torch.Tensor of size (batch_size, height, width, channel)
         return         torch.Tensor of size (batch_size, C)
         """
-        
-        return self.model(observation)
+        x = self.fe(observation)
+        x = torch.flatten(x, 1)
+        x = self.clf(x)
+        return x
 
     def actions_to_classes(self, actions):
         """

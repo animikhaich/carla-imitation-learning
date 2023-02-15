@@ -20,20 +20,20 @@ def train(data_folder, labels_path, save_path, resume=False):
     # if device == 'cuda':
     #     infer_action = torch.nn.DataParallel(ClassificationNetwork(), device_ids=device_id).to(device)
     # else:
-    infer_action = ClassificationNetwork(input_size=(224, 224)).to(device)
+    infer_action = ClassificationNetwork().to(device)
     optimizer = torch.optim.Adam(infer_action.parameters(), lr=1e-3)
     
-    model_name = "all_250k_resnet18_v1"
+    model_name = "all_250k_small_v3"
     nr_epochs = 300
     best_loss = 10e10
-    batch_size = 128
+    batch_size = 512
     nr_of_classes = 0  # needs to be changed
     start_time = time.time()
 
     if resume:
         infer_action.load_state_dict(torch.load(f"{model_name}_best.pt").state_dict())
 
-    train_loader = get_dataloader(data_folder, labels_path, batch_size, num_workers=12)
+    train_loader = get_dataloader(data_folder, labels_path, batch_size, num_workers=20)
 
     for epoch in range(nr_epochs):
         total_loss = 0

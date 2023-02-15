@@ -11,7 +11,7 @@ from torch.utils.data import Dataset
 
 
 class CarlaDataset(Dataset):
-    def __init__(self, data_dir, labels, transform=None, image_size=(224, 224)):
+    def __init__(self, data_dir, labels, transform=None, image_size=(96, 96)):
         self.data_dir = data_dir
         self.image_filenames = os.listdir(data_dir)
         self.labels = pd.read_csv(labels)
