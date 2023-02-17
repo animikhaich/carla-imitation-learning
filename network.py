@@ -39,12 +39,9 @@ class ClassificationNetwork(torch.nn.Module):
     
 
     def init_model(self):
-        self.model = torchvision.models.resnet18(weights='DEFAULT')
-        self.model.fc = torch.nn.Sequential(
-            torch.nn.Linear(self.model.fc.in_features, 2048),
-            nn.ReLU(),
-
-            torch.nn.Linear(2048, 256),
+        self.model = torchvision.models.vit_b_32(weights='DEFAULT')
+        self.model.heads = torch.nn.Sequential(
+            torch.nn.Linear(self.model.heads.head.in_features, 256),
             nn.ReLU(),
 
             nn.Linear(256, self.num_classes),

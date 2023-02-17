@@ -15,32 +15,32 @@ def train(data_folder, labels_path, save_path, resume=False):
     """
     Function for training the network. You can make changes (e.g., add validation dataloader, change batch_size and #of epoch) accordingly.
     """
-    device_id = [0]
+    device_id = [0, 1]
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    # if device == 'cuda':
-    #     infer_action = torch.nn.DataParallel(ClassificationNetwork(), device_ids=device_id).to(device)
-    # else:
-    infer_action = ClassificationNetwork(input_size=(224, 224)).to(device)
+    if device == 'cuda':
+        infer_action = torch.nn.DataParallel(ClassificationNetwork(), device_ids=device_id).to(device)
+    else:
+        infer_action = ClassificationNetwork(input_size=(224, 224)).to(device)
     optimizer = torch.optim.Adam(infer_action.parameters(), lr=1e-3)
     
-    model_name = "all_250k_resnet18_v1"
+    model_name = "all_250k_vit_b_32_v1"
     nr_epochs = 300
     best_loss = 10e10
-    batch_size = 128
+    batch_size = 256 * 2
     nr_of_classes = 0  # needs to be changed
     start_time = time.time()
 
     if resume:
         infer_action.load_state_dict(torch.load(f"{model_name}_best.pt").state_dict())
 
-    train_loader = get_dataloader(data_folder, labels_path, batch_size, num_workers=12)
+    train_loader = get_dataloader(data_folder, labels_path, batch_size, num_workers=16)
 
     for epoch in range(nr_epochs):
         total_loss = 0
         batch_in = []
         batch_gt = []
 
-        for batch_idx, batch in tqdm(enumerate(train_loader), total=len(train_loader)):
+        for batch_idx, batch in enumerate(train_loader):
             batch_in, batch_gt = batch[0].to(device), batch[1].to(device)
             
             batch_out = infer_action(batch_in)

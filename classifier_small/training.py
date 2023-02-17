@@ -33,14 +33,14 @@ def train(data_folder, labels_path, save_path, resume=False):
     if resume:
         infer_action.load_state_dict(torch.load(f"{model_name}_best.pt").state_dict())
 
-    train_loader = get_dataloader(data_folder, labels_path, batch_size, num_workers=20)
+    train_loader = get_dataloader(data_folder, labels_path, batch_size, num_workers=16)
 
     for epoch in range(nr_epochs):
         total_loss = 0
         batch_in = []
         batch_gt = []
 
-        for batch_idx, batch in tqdm(enumerate(train_loader), total=len(train_loader)):
+        for batch_idx, batch in enumerate(train_loader):
             batch_in, batch_gt = batch[0].to(device), batch[1].to(device)
             
             batch_out = infer_action(batch_in)

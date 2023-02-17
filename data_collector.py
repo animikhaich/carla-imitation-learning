@@ -554,12 +554,12 @@ class HUD(object):
             'Simulation time: % 12s' % datetime.timedelta(seconds=int(self.simulation_time)),
             '',
             'Speed:   % 15.0f km/h' % (3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2)),
-            u'Compass:% 17.0f\N{DEGREE SIGN} % 2s' % (compass, heading),
-            'Accelero: (%5.1f,%5.1f,%5.1f)' % (world.imu_sensor.accelerometer),
-            'Gyroscop: (%5.1f,%5.1f,%5.1f)' % (world.imu_sensor.gyroscope),
-            'Location:% 20s' % ('(% 5.1f, % 5.1f)' % (t.location.x, t.location.y)),
-            'GNSS:% 24s' % ('(% 2.6f, % 3.6f)' % (world.gnss_sensor.lat, world.gnss_sensor.lon)),
-            'Height:  % 18.0f m' % t.location.z,
+            # u'Compass:% 17.0f\N{DEGREE SIGN} % 2s' % (compass, heading),
+            # 'Accelero: (%5.1f,%5.1f,%5.1f)' % (world.imu_sensor.accelerometer),
+            # 'Gyroscop: (%5.1f,%5.1f,%5.1f)' % (world.imu_sensor.gyroscope),
+            # 'Location:% 20s' % ('(% 5.1f, % 5.1f)' % (t.location.x, t.location.y)),
+            # 'GNSS:% 24s' % ('(% 2.6f, % 3.6f)' % (world.gnss_sensor.lat, world.gnss_sensor.lon)),
+            # 'Height:  % 18.0f m' % t.location.z,
             '']
         if isinstance(c, carla.VehicleControl):
             self._info_text += [
@@ -1052,7 +1052,7 @@ class CameraManager(object):
                 'steer',
                 'brake',
                 'reverse',
-                'hand_bake',
+                'hand_brake',
                 'manual_gear_shift',
                 'gear',
                 'simulation_time',
@@ -1133,9 +1133,8 @@ class CameraManager(object):
             else:
                 self.stop_counter = 0
 
-            # Save every n-th Data Point
-            if int(image.frame) % self.world.args.sampling_rate == 0 and self.stop_counter <= self.world.args.max_stop_frames:
-                # Write Data
+            # Declaring a nested function to use the local variables without passing them as args
+            def save_data():
                 cv2.imwrite(os.path.join(img_dir, filename), array)
                 if os.path.exists(os.path.join(metrics_dir, metrics_filename)):
                     with open(os.path.join(metrics_dir, metrics_filename), 'a') as f:
@@ -1148,6 +1147,16 @@ class CameraManager(object):
                         assert len(columns) == len(values)
                         writer.writerow(columns)
                         writer.writerow(values)
+
+            
+            # Save all data when the car is turning
+            if abs(c.steer) > 0.1:
+                save_data()
+            # Save every n-th Data Point
+            elif int(image.frame) % self.world.args.sampling_rate == 0 and self.stop_counter <= self.world.args.max_stop_frames:
+                save_data()
+            
+
             
 
 
@@ -1240,8 +1249,8 @@ def main():
     argparser.add_argument(
         '--res',
         metavar='WIDTHxHEIGHT',
-        default='1280x720',
-        help='window resolution (default: 1280x720)')
+        default='800x600',
+        help='window resolution (default: 800x600)')
     argparser.add_argument(
         '--filter',
         metavar='PATTERN',

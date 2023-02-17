@@ -912,11 +912,22 @@ class CameraManager(object):
         self.recording = False
         self.stop_counter = 0
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        # self.model = ClassificationNetwork().to(self.device)
-        self.model = torch.load(f"all_250k_small_v3_best.pt")
-        # self.model.load_state_dict(torch.load(f"2080ti_114k_small_v2_best.pt").state_dict())
+        self.model = ClassificationNetwork().to(self.device)
+        model = torch.load(f"all_250k_vit_b_32_v1_best.pt")
+        # Remove the module prefix from the state dictionary keys
+        new_state_dict = {}
+        if isinstance(model, torch.nn.DataParallel):
+            model = model.module.state_dict()
+            for key, value in model.items():
+                if key.startswith('module.'):
+                    new_key = key[7:]
+                else:
+                    new_key = key
+                new_state_dict[new_key] = value
+
+        self.model.load_state_dict(new_state_dict)
         self.transform = torchvision.transforms.Compose([
-                torchvision.transforms.Resize([96, 96], interpolation=torchvision.transforms.InterpolationMode.BILINEAR),
+                torchvision.transforms.Resize([224, 224], interpolation=torchvision.transforms.InterpolationMode.BILINEAR),
                 torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             ])
         bound_y = 0.5 + self._parent.bounding_box.extent.y
@@ -1043,13 +1054,13 @@ class CameraManager(object):
             img = self.transform(img).to(self.device)
             # self.model.eval()
             with torch.no_grad():
-                preds = self.model(torch.unsqueeze(img, axis=0))
+                preds = torch.nn.functional.softmax(self.model(torch.unsqueeze(img, axis=0)))
                 preds = preds.detach().cpu()
 
             throttle, steer, brake = self.model.scores_to_action(preds) 
             
             print(f"Throttle: {throttle} | Steer: {steer} | Brake: {brake}")
-            self.world.player.apply_control(carla.VehicleControl(steer=steer/4.5, throttle=throttle/2.5, brake=brake))
+            self.world.player.apply_control(carla.VehicleControl(steer=steer/3, throttle=throttle/3, brake=brake))
 
             
 

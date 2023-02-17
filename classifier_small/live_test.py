@@ -1043,13 +1043,13 @@ class CameraManager(object):
             img = self.transform(img).to(self.device)
             # self.model.eval()
             with torch.no_grad():
-                preds = self.model(torch.unsqueeze(img, axis=0))
+                preds = torch.nn.functional.softmax(self.model(torch.unsqueeze(img, axis=0)))
                 preds = preds.detach().cpu()
 
             throttle, steer, brake = self.model.scores_to_action(preds) 
             
             print(f"Throttle: {throttle} | Steer: {steer} | Brake: {brake}")
-            self.world.player.apply_control(carla.VehicleControl(steer=steer/4.5, throttle=throttle/2.5, brake=brake))
+            self.world.player.apply_control(carla.VehicleControl(steer=steer/3, throttle=throttle/3, brake=brake))
 
             
 

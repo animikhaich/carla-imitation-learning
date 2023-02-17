@@ -32,8 +32,8 @@ def merge_csv(file1, file2, file3, output_file):
 
 # Example usage
 merge_csv(
-    "data/3090ti/metrics/metrics.csv", 
-    "data/2080ti/metrics/metrics.csv",
-    "data/scc/metrics/metrics.csv", 
+    "data/3090ti-v1/metrics/metrics.csv", 
+    "data/2080ti-v1/metrics/metrics.csv",
+    "data/scc-v1/metrics/metrics.csv", 
     "data/combined/metrics.csv"
     )
