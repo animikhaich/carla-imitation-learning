@@ -45,7 +45,7 @@ class CarlaDataset(Dataset):
         }
 
     def __len__(self):
-        return len(self.image_filenames)
+        return min(len(self.image_filenames), len(self.labels))
 
     def actions_to_classes(self, throttle, steer, brake):
         # Discretize Steering 
