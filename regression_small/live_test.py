@@ -89,6 +89,9 @@ import weakref
 import cv2
 import numpy as np
 import csv
+import torch
+import torchvision
+from network import ClassificationNetwork
 
 try:
     import pygame
@@ -908,6 +911,14 @@ class CameraManager(object):
         self.hud = hud
         self.recording = False
         self.stop_counter = 0
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        # self.model = ClassificationNetwork().to(self.device)
+        self.model = torch.load(f"all_250k_small_v3_best.pt")
+        # self.model.load_state_dict(torch.load(f"2080ti_114k_small_v2_best.pt").state_dict())
+        self.transform = torchvision.transforms.Compose([
+                torchvision.transforms.Resize([96, 96], interpolation=torchvision.transforms.InterpolationMode.BILINEAR),
+                torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            ])
         bound_y = 0.5 + self._parent.bounding_box.extent.y
         Attachment = carla.AttachmentType
         self._camera_transforms = [
@@ -1010,7 +1021,7 @@ class CameraManager(object):
             lidar_img = np.zeros((lidar_img_size), dtype=np.uint8)
             lidar_img[tuple(lidar_data.T)] = (255, 255, 255)
             self.surface = pygame.surfarray.make_surface(lidar_img)
-        elif self.sensors[self.index][0].startswith('sensor.camera.dvs'):
+
             # Example of converting the raw_data from a carla.DVSEventArray
             # sensor into a NumPy array and using it as an image
             dvs_events = np.frombuffer(image.raw_data, dtype=np.dtype([
@@ -1026,128 +1037,22 @@ class CameraManager(object):
             array = array[:, :, :3]
             array = array[:, :, ::-1]
             self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
-        if self.recording:
-            # Create Directories for Storage
-            img_dir = 'data/rgb'
-            metrics_dir = 'data/metrics'
-            metrics_filename = 'metrics.csv'
 
-            if not os.path.isdir(img_dir):
-                os.makedirs(img_dir)
-            if not os.path.isdir(metrics_dir):
-                os.makedirs(metrics_dir)
+            ### Run inference and control the car
+            img = torch.tensor(array.transpose(2, 0, 1).copy()).type(torch.float)
+            img = self.transform(img).to(self.device)
+            # self.model.eval()
+            with torch.no_grad():
+                preds = torch.nn.functional.softmax(self.model(torch.unsqueeze(img, axis=0)))
+                preds = preds.detach().cpu()
 
-            # Process and extract RGB image, and save it
-            image.convert(self.sensors[self.index][1])
-            array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
-            array = np.reshape(array, (image.height, image.width, 4))
-            array = array[:, :, :3]
+            throttle, steer, brake = self.model.scores_to_action(preds) 
             
+            print(f"Throttle: {throttle} | Steer: {steer} | Brake: {brake}")
+            self.world.player.apply_control(carla.VehicleControl(steer=steer/3, throttle=throttle/3, brake=brake))
+
             
-            # Get the data from the world and the ego car
 
-            columns = [
-                'filename',
-                'throttle',
-                'steer',
-                'brake',
-                'reverse',
-                'hand_bake',
-                'manual_gear_shift',
-                'gear',
-                'simulation_time',
-                'simulation_time_secs',
-                'speed_raw_x',
-                'speed_raw_y',
-                'speed_raw_z',
-                'speed_kmph',
-                'compass',
-                'heading',
-                'accelerometer_x',
-                'accelerometer_y',
-                'accelerometer_z',
-                'gyroscope_x',
-                'gyroscope_y',
-                'gyroscope_z',
-                'location_x',
-                'location_y',
-                'gnss_x',
-                'gnss_y',
-                'height',
-            ]
-            values = []
-
-            t = self._parent.get_transform()
-            v = self._parent.get_velocity()
-            c = self._parent.get_control()
-
-            compass = self.world.imu_sensor.compass
-
-            if compass > 270.5 or compass < 89.5:
-                heading = 'N'
-            elif 90.5 < compass < 269.5:
-                heading = 'S'
-            elif 0.5 < compass < 179.5:
-                heading = 'E'
-            elif 180.5 < compass < 359.5:
-                heading = 'W'
-            else:
-                heading = ''
-
-            acc_x, acc_y, acc_z = self.world.imu_sensor.accelerometer
-            gyro_x, gyro_y, gyro_z = self.world.imu_sensor.gyroscope
-
-            filename = f"{self.world.args.prefix}_{image.frame}.jpg"
-
-            values.append(filename) # filename
-            values.append(str(c.throttle)) # throttle
-            values.append(str(c.steer)) # steer
-            values.append(str(c.brake)) # brake
-            values.append(str(int(c.reverse))) # reverse
-            values.append(str(int(c.hand_brake))) # hand_brake
-            values.append(str(int(c.manual_gear_shift))) # manual_gear_shift
-            values.append(str(c.gear)) # gear
-            values.append(str(datetime.timedelta(seconds=int(self.hud.simulation_time)))) # simulation_time
-            values.append(str(self.hud.simulation_time)) # simulation_time_secs
-            values.append(str(v.x)) # speed_raw_x
-            values.append(str(v.y)) # speed_raw_y
-            values.append(str(v.z)) # speed_raw_z
-            values.append(str(3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2))) # speed_kmph
-            values.append(str(compass)) # compass
-            values.append(str(heading)) # heading
-            values.append(str(acc_x)) # accelerometer_x
-            values.append(str(acc_y)) # accelerometer_y
-            values.append(str(acc_z)) # accelerometer_z
-            values.append(str(gyro_x)) # gyroscope_x
-            values.append(str(gyro_y)) # gyroscope_y
-            values.append(str(gyro_z)) # gyroscope_z
-            values.append(str(t.location.x)) # location_x
-            values.append(str(t.location.y)) # location_y
-            values.append(str(self.world.gnss_sensor.lat)) # gnss_x
-            values.append(str(self.world.gnss_sensor.lon)) # gnss_y
-            values.append(str(t.location.z)) # height
-
-            # If the car is standing for a long time, stop saving the data after a certain duration.
-            if 3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2) <= 1e-5:
-                self.stop_counter += 1
-            else:
-                self.stop_counter = 0
-
-            # Save every n-th Data Point
-            if int(image.frame) % self.world.args.sampling_rate == 0 and self.stop_counter <= self.world.args.max_stop_frames:
-                # Write Data
-                cv2.imwrite(os.path.join(img_dir, filename), array)
-                if os.path.exists(os.path.join(metrics_dir, metrics_filename)):
-                    with open(os.path.join(metrics_dir, metrics_filename), 'a') as f:
-                        writer = csv.writer(f)
-                        assert len(columns) == len(values)
-                        writer.writerow(values)
-                else:
-                    with open(os.path.join(metrics_dir, metrics_filename), 'w') as f:
-                        writer = csv.writer(f)
-                        assert len(columns) == len(values)
-                        writer.writerow(columns)
-                        writer.writerow(values)
             
 
 
@@ -1171,13 +1076,13 @@ def game_loop(args):
 
         hud = HUD(args.width, args.height)
         world = World(client.get_world(), hud, args)
-        controller = KeyboardControl(world, args.autopilot)
+        # controller = KeyboardControl(world, args.autopilot)
 
         clock = pygame.time.Clock()
         while True:
             clock.tick_busy_loop(60)
-            if controller.parse_events(client, world, clock):
-                return
+            # if controller.parse_events(client, world, clock):
+            #     return
             world.tick(clock)
             world.render(display)
             pygame.display.flip()
