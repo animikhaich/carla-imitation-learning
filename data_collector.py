@@ -1150,10 +1150,10 @@ class CameraManager(object):
 
             
             # Save all data when the car is turning
-            if abs(c.steer) > 0.1:
+            if abs(c.steer) > 0.1 or self.stop_counter >= self.world.args.max_stop_frames:
                 save_data()
             # Save every n-th Data Point
-            elif int(image.frame) % self.world.args.sampling_rate == 0 and self.stop_counter <= self.world.args.max_stop_frames:
+            elif int(image.frame) % self.world.args.sampling_rate == 0:
                 save_data()
             
 
