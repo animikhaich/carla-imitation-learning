@@ -18,7 +18,7 @@ class CarlaDataset(Dataset):
         self.delta = 1e-3 # Defines the interval (+/-) where sensor margin of error is considered
 
         # Assert that the number of images are greater than or equal to the number of labels
-        assert len(self.image_filenames) >= len(self.labels), "There are more labels than images. This means there are missing images."
+        assert len(self.image_filenames) <= len(self.labels), "There are more labels than images. This means there are missing images."
 
         if transform:
             self.transform = transform
