@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-class ClassificationNetwork(torch.nn.Module):
+class RegressionNetwork(torch.nn.Module):
     def __init__(self, input_size=(96, 96, 3)):
         """
         Implementation of the network layers. The image size of the input
@@ -18,27 +18,33 @@ class ClassificationNetwork(torch.nn.Module):
         num_filters = 32
 
         self.fe = nn.Sequential(
-            nn.Conv2d(min(self.input_size), num_filters, kernel_size=5, stride=2),
+            nn.Conv2d(min(self.input_size), num_filters, kernel_size=3, stride=1),
             nn.BatchNorm2d(num_filters),
             nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
             
             nn.Conv2d(num_filters, num_filters * 2, kernel_size=3, stride=1),
             nn.BatchNorm2d(num_filters * 2),
             nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
             
             nn.Conv2d(num_filters * 2, num_filters * 4, kernel_size=3, stride=1),
             nn.BatchNorm2d(num_filters * 4),
             nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
         )
 
         self.clf = nn.Sequential(
-            nn.Linear(225792, 2048),
-            nn.LeakyReLU(negative_slope=0.2),
+            nn.Linear(25088, 1024),
+            nn.ReLU(),
 
-            nn.Linear(2048, 256),
-            nn.LeakyReLU(negative_slope=0.2),
+            nn.Linear(1024, 256),
+            nn.ReLU(),
+
+            nn.Linear(256, 64),
+            nn.ReLU(),
             
-            nn.Linear(256, 3),
+            nn.Linear(64, 3),
             nn.Tanh()
         )
 

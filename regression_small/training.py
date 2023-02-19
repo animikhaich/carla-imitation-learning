@@ -5,7 +5,7 @@ import argparse
 
 import torch
 
-from network import ClassificationNetwork
+from network import RegressionNetwork
 from dataset import CarlaDataset
 from torch.utils.tensorboard.writer import SummaryWriter
 from torch.utils.data import DataLoader
@@ -29,13 +29,13 @@ def train(args):
 
     # Choose Training Medium
     if device == 'cuda' and len(args.use_gpus) > 1:
-        infer_action = torch.nn.DataParallel(ClassificationNetwork(), device_ids=args.use_gpus).to(device)
+        infer_action = torch.nn.DataParallel(RegressionNetwork(), device_ids=args.use_gpus).to(device)
         print("Using multiple GPUs:", args.use_gpus)
     elif device == 'cuda' and len(args.use_gpus) == 1:
-        infer_action = ClassificationNetwork().to(device)
+        infer_action = RegressionNetwork().to(device)
         print("Using single GPU:", args.use_gpus[0])
     else:
-        infer_action = ClassificationNetwork().to(device)
+        infer_action = RegressionNetwork().to(device)
         print("Using CPU")
     
     # Define optimizer with learning rate scheduler
@@ -75,7 +75,8 @@ def train(args):
         infer_action.load_state_dict(torch.load(args.load_model_path).state_dict())
         print(f"Loaded Weights From: {args.load_model_path}")
 
-    
+    criterion = torch.nn.MSELoss()
+
     # Training Loop
     for epoch in range(args.epochs):
         total_loss = 0
@@ -83,18 +84,19 @@ def train(args):
         for batch_idx, batch in tqdm(enumerate(train_loader), total=len(train_loader), disable=args.disable_tqdm):
             batch_in, batch_gt = batch[0].to(device), batch[1].to(device)
             batch_out = infer_action(batch_in)
-            loss = torch.nn.functional.mse_loss(batch_out, batch_gt)
+            loss = criterion(batch_out, batch_gt)
             
             optimizer.zero_grad() 
             loss.backward()
+            optimizer.step()
             total_loss += loss
 
         scheduler.step(total_loss)
         time_per_epoch = (time.time() - start_time) / (epoch + 1)
         time_left = (1.0 * time_per_epoch) * (args.epochs - 1 - epoch)
         
-        print("Epoch %5d\t[Train]\tloss: %.6f \tETA:" % (
-            epoch + 1, total_loss), seconds_to_hms(time_left))
+        print("Epoch %5d\t[Train]\tloss: %.6f \t LR: %.6f \tETA:" % (
+            epoch + 1, scheduler._last_lr[0], total_loss), seconds_to_hms(time_left))
 
         # Write to Tensorboard
         writer.add_scalar('Loss/train', total_loss, epoch)
