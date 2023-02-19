@@ -16,6 +16,10 @@ class CarlaDataset(Dataset):
         self.image_filenames = os.listdir(data_dir)
         self.labels = pd.read_csv(labels)
         self.delta = 1e-3 # Defines the interval (+/-) where sensor margin of error is considered
+
+        # Assert that the number of images are greater than or equal to the number of labels
+        assert len(self.image_filenames) >= len(self.labels), "There are more labels than images. This means there are missing images."
+
         if transform:
             self.transform = transform
         else:
@@ -23,57 +27,15 @@ class CarlaDataset(Dataset):
                 transforms.Resize(image_size),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             ])
-        
-        self.idx_to_action = {
-            0: "throttle",
-            1: "throttle_left",
-            2: "throttle_right",
-            3: "brake",
-            4: "brake_left",
-            5: "brake_right",
-            6: "OOD"
-        }
-
-        self.action_to_idx = {
-            "throttle": 0,
-            "throttle_left": 1,
-            "throttle_right": 2,
-            "brake": 3,
-            "brake_left": 4,
-            "brake_right": 5,
-            "OOD": 6
-        }
 
     def __len__(self):
-        return min(len(self.image_filenames), len(self.labels))
+        """
+        __len__ Get the length of the dataset
 
-    def actions_to_classes(self, throttle, steer, brake):
-        # Discretize Steering 
-        if steer < -self.delta:
-            steer = -1
-        elif steer > self.delta:
-            steer = 1
-        else:
-            steer = 0
-        
-        # Discretize Throttle
-        throttle = 1 if throttle > self.delta else 0
-
-        # Conditions
-        if brake and steer == 0:
-            return "brake"
-        elif brake and steer < 0:
-            return "brake_left"
-        elif brake and steer > 0:
-            return "brake_right"
-        elif throttle and steer == 0:
-            return "throttle"
-        elif throttle and steer < 0:
-            return "throttle_left"
-        elif throttle and steer > 0:
-            return "throttle_right"
-        else:
-            return "OOD"            
+        Returns:
+            int: length of the dataset
+        """
+        return min(len(self.image_filenames), len(self.labels))      
 
 
     def __getitem__(self, idx):
@@ -88,15 +50,17 @@ class CarlaDataset(Dataset):
         image = image.type(torch.float)
         image = self.transform(image) if self.transform else image
 
-        action = self.actions_to_classes(data.throttle, data.steer, data.brake)
-        label = torch.tensor(self.action_to_idx[action])
-        label = torch.nn.functional.one_hot(label, num_classes=len(self.action_to_idx))
+        # We use tanh activation for the steering and brake, so we need to normalize the data
+        throttle = (data.throttle - 0.5) * 2 # Range is now (-1, 1)
+        steer = data.steer # Range is already (-1, 1)
+        brake = (data.brake - 0.5) * 2 # Range is now (-1, 1)
 
-        return (image, label.type(torch.DoubleTensor))
+        label = torch.tensor([throttle, steer, brake])
+
+        return (image, label.type(torch.float))
 
 
-
-
+"""Not using this function because I prefer to directly call the dataloader, makes it easier to pass arguments"""
 def get_dataloader(data_dir, labels, batch_size, num_workers=32, shuffle=True):
     return torch.utils.data.DataLoader(
                 CarlaDataset(data_dir=data_dir, labels=labels),
