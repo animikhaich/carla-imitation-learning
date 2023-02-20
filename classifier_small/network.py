@@ -59,7 +59,7 @@ class ClassificationNetwork(torch.nn.Module):
             nn.ReLU(),
 
             nn.Linear(2048, self.num_classes),
-            nn.LeakyReLU(negative_slope=0.2),
+            nn.Softmax(dim=1)
         )
 
 
