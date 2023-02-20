@@ -37,15 +37,8 @@ class RegressionNetwork(torch.nn.Module):
         self.clf = nn.Sequential(
             nn.Linear(25088, 1024),
             nn.ReLU(),
-
-            nn.Linear(1024, 256),
-            nn.ReLU(),
-
-            nn.Linear(256, 64),
-            nn.ReLU(),
             
-            nn.Linear(64, 3),
-            nn.Tanh()
+            nn.Linear(1024, 3),
         )
 
 

@@ -81,22 +81,29 @@ def train(args):
     for epoch in range(args.epochs):
         total_loss = 0
 
-        for batch_idx, batch in tqdm(enumerate(train_loader), total=len(train_loader), disable=args.disable_tqdm):
+        pbar = tqdm(enumerate(train_loader), total=len(train_loader), disable=args.disable_tqdm, ascii=True)
+        for batch_idx, batch in pbar:
             batch_in, batch_gt = batch[0].to(device), batch[1].to(device)
             batch_out = infer_action(batch_in)
             loss = criterion(batch_out, batch_gt)
+
+            if loss >= 1e20:
+                print(batch_in.min(), batch_in.max())
+                continue
             
             optimizer.zero_grad() 
             loss.backward()
             optimizer.step()
             total_loss += loss
 
+
+            pbar.set_description(f"Loss: {total_loss:.3f}")
+
         scheduler.step(total_loss)
         time_per_epoch = (time.time() - start_time) / (epoch + 1)
         time_left = (1.0 * time_per_epoch) * (args.epochs - 1 - epoch)
         
-        print("Epoch %5d\t[Train]\tloss: %.6f \t LR: %.6f \tETA:" % (
-            epoch + 1, scheduler._last_lr[0], total_loss), seconds_to_hms(time_left))
+        print(f"Epoch {epoch+1}\t[Train]\tloss: {total_loss:.5f} \tETA: {seconds_to_hms(time_left)}")
 
         # Write to Tensorboard
         writer.add_scalar('Loss/train', total_loss, epoch)
@@ -126,11 +133,14 @@ class EarlyStopping:
         self.mode = mode
 
     def __call__(self, val_metric, best_metric):
-        self.counter += 1
-        if (self.mode == 'lowest' and val_metric <= best_metric and self.counter > self.patience) or \
-            (self.mode == 'highest' and val_metric >= best_metric and self.counter > self.patience):
+        if (self.mode == 'lowest' and val_metric >= best_metric and self.counter > self.patience) or \
+            (self.mode == 'highest' and val_metric <= best_metric and self.counter > self.patience):
             print("Early Stopping after %d epochs" % self.counter)
+            self.counter += 1
             return True
+        else:
+            self.counter = 0
+            return False
 
 def seconds_to_hms(seconds):
     m, s = divmod(seconds, 60)

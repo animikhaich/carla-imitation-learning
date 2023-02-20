@@ -16,7 +16,7 @@ def copy_files(src_folder, dst_folder):
     file_list = os.listdir(src_folder)
 
     # Copy each file from the source folder to the destination folder
-    for file_name in tqdm(file_list, desc='Copying files'):
+    for file_name in tqdm(file_list, desc='Copying files', ascii=True):
         src_path = os.path.join(src_folder, file_name)
         dst_path = os.path.join(dst_folder, file_name)
         shutil.copy(src_path, dst_path)

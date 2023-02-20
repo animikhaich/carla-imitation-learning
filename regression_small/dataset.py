@@ -24,8 +24,9 @@ class CarlaDataset(Dataset):
             self.transform = transform
         else:
             self.transform = transforms.Compose([
+                # transforms.ToTensor(),
                 transforms.Resize(image_size),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+                transforms.Normalize(mean=0, std=1)
             ])
 
     def __len__(self):
@@ -46,16 +47,15 @@ class CarlaDataset(Dataset):
         return    (image, action), both in torch.Tensor format
         """
         data = self.labels.iloc[idx]
-        image = torchvision.io.read_image(os.path.join(self.data_dir, data.filename))
-        image = image.type(torch.float)
+        image = torchvision.io.read_image(os.path.join(self.data_dir, data.filename)) / 255.
         image = self.transform(image) if self.transform else image
 
         # We use tanh activation for the steering and brake, so we need to normalize the data
-        throttle = (data.throttle - 0.5) * 2 # Range is now (-1, 1)
-        steer = data.steer # Range is already (-1, 1)
-        brake = (data.brake - 0.5) * 2 # Range is now (-1, 1)
+        # throttle = (data.throttle - 0.5) * 2 # Range is now (-1, 1)
+        # steer = data.steer # Range is already (-1, 1)
+        # brake = (data.brake - 0.5) * 2 # Range is now (-1, 1)
 
-        label = torch.tensor([throttle, steer, brake])
+        label = torch.tensor([data.throttle, data.steer, data.brake])
 
         return (image, label.type(torch.float))
 
