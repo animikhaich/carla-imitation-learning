@@ -41,7 +41,7 @@ class ClassificationNetwork(torch.nn.Module):
         num_filters = 32
 
         self.fe = nn.Sequential(
-            nn.Conv2d(min(self.input_size), num_filters, kernel_size=5, stride=2),
+            nn.Conv2d(3, num_filters, kernel_size=5, stride=2),
             nn.BatchNorm2d(num_filters),
             nn.ReLU(),
             

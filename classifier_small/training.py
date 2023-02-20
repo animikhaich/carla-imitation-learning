@@ -73,6 +73,7 @@ def train(args):
 
         pbar = tqdm(enumerate(train_loader), total=len(train_loader), disable=args.disable_tqdm, ascii=True)
         for batch_idx, batch in pbar:
+            print(batch[0].shape, batch[1].shape)
             batch_in, batch_gt = batch[0].to(device), batch[1].to(device)
             batch_out = infer_action(batch_in)
             loss = cross_entropy_loss(batch_out, batch_gt)
