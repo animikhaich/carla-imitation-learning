@@ -24,7 +24,6 @@ class CarlaDataset(Dataset):
             self.transform = transform
         else:
             self.transform = transforms.Compose([
-                # transforms.ToTensor(),
                 transforms.Resize(image_size),
                 transforms.Normalize(mean=0, std=1)
             ])

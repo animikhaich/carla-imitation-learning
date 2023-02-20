@@ -21,7 +21,7 @@ class CarlaDataset(Dataset):
         else:
             self.transform = transforms.Compose([
                 transforms.Resize(image_size),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+                transforms.Normalize(mean=0, std=1)
             ])
         
         self.idx_to_action = {
@@ -84,8 +84,7 @@ class CarlaDataset(Dataset):
         return    (image, action), both in torch.Tensor format
         """
         data = self.labels.iloc[idx]
-        image = torchvision.io.read_image(os.path.join(self.data_dir, data.filename))
-        image = image.type(torch.float)
+        image = torchvision.io.read_image(os.path.join(self.data_dir, data.filename)) / 255.0
         image = self.transform(image) if self.transform else image
 
         action = self.actions_to_classes(data.throttle, data.steer, data.brake)
