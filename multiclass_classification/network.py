@@ -1,4 +1,5 @@
 import torch
+import torchvision
 import torch.nn as nn
 
 class MultiClassClassificationModel(torch.nn.Module):
@@ -13,28 +14,13 @@ class MultiClassClassificationModel(torch.nn.Module):
         self.init_model()
 
     def init_model(self):
-        num_filters = 32
-
-        self.fe = nn.Sequential(
-            nn.Conv2d(3, num_filters, kernel_size=5, stride=2),
-            nn.BatchNorm2d(num_filters),
-            nn.ReLU(),
-            
-            nn.Conv2d(num_filters, num_filters * 2, kernel_size=3, stride=1),
-            nn.BatchNorm2d(num_filters * 2),
-            nn.ReLU(),
-            
-            nn.Conv2d(num_filters * 2, num_filters * 4, kernel_size=3, stride=1),
-            nn.BatchNorm2d(num_filters * 4),
-            nn.ReLU(),
-        )
-
-        self.clf = nn.Sequential(
-            nn.Linear(225792, 2048),
+        self.model = torchvision.models.resnet34(weights='DEFAULT')
+        self.model.heads = torch.nn.Sequential(
+            torch.nn.Linear(self.model.fc.in_features, 64),
             nn.ReLU(),
 
-            nn.Linear(2048, 4),
-            nn.Sigmoid()
+            nn.Linear(256, 4),
+            nn.Sigmoid(),
         )
 
 
@@ -46,11 +32,7 @@ class MultiClassClassificationModel(torch.nn.Module):
         observation:   torch.Tensor of size (batch_size, height, width, channel)
         return         torch.Tensor of size (batch_size, C)
         """
-        x = self.fe(observation)
-        x = torch.flatten(x, 1)
-        x = self.clf(x)
-        return x
-
+        return self.model(observation)
 
         
 
