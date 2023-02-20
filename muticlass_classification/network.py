@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-class RegressionNetwork(torch.nn.Module):
+class MultiClassClassificationModel(torch.nn.Module):
     def __init__(self, input_size=(96, 96, 3)):
         """
         Implementation of the network layers. The image size of the input
@@ -12,33 +12,29 @@ class RegressionNetwork(torch.nn.Module):
         self.input_size = input_size
         self.init_model()
 
-    
-
     def init_model(self):
         num_filters = 32
 
         self.fe = nn.Sequential(
-            nn.Conv2d(min(self.input_size), num_filters, kernel_size=3, stride=1),
+            nn.Conv2d(min(self.input_size), num_filters, kernel_size=5, stride=2),
             nn.BatchNorm2d(num_filters),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2),
             
             nn.Conv2d(num_filters, num_filters * 2, kernel_size=3, stride=1),
             nn.BatchNorm2d(num_filters * 2),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2),
             
             nn.Conv2d(num_filters * 2, num_filters * 4, kernel_size=3, stride=1),
             nn.BatchNorm2d(num_filters * 4),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2),
         )
 
         self.clf = nn.Sequential(
-            nn.Linear(25088, 1024),
+            nn.Linear(225792, 2048),
             nn.ReLU(),
-            
-            nn.Linear(1024, 3),
+
+            nn.Linear(2048, 4),
+            nn.Sigmoid()
         )
 
 
@@ -58,7 +54,7 @@ class RegressionNetwork(torch.nn.Module):
 
         
 
-    def scores_to_action(self, scores):
+    def scores_to_action(self, scores, scale_down=True):
         """
         The scores come in as [throttle, steer, brake] in the range (-1, 1).
         We need to map them back to the action space, where throttle and brake
@@ -70,6 +66,16 @@ class RegressionNetwork(torch.nn.Module):
         """
         scores = scores.detach().cpu().numpy()
         throttle = scores[0]
-        steer = scores[1]
-        brake = scores[2]
+        left = scores[1]
+        right = scores [2]
+        brake = scores[3]
+        if left > right:
+            steer = -1
+        else:
+            steer = 1
+
+        if scale_down:
+            throttle = throttle / 2.5
+            steer = steer / 2.5
+
         return (throttle, steer, brake)

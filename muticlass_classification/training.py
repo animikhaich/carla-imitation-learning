@@ -5,7 +5,7 @@ import argparse
 
 import torch
 
-from network import RegressionNetwork
+from network import MultiClassClassificationModel
 from dataset import CarlaDataset
 from torch.utils.tensorboard.writer import SummaryWriter
 from torch.utils.data import DataLoader
@@ -29,13 +29,13 @@ def train(args):
 
     # Choose Training Medium
     if device == 'cuda' and len(args.use_gpus) > 1:
-        infer_action = torch.nn.DataParallel(RegressionNetwork(input_size=args.image_size), device_ids=args.use_gpus).to(device)
+        infer_action = torch.nn.DataParallel(MultiClassClassificationModel(input_size=args.image_size), device_ids=args.use_gpus).to(device)
         print("Using multiple GPUs:", args.use_gpus)
     elif device == 'cuda' and len(args.use_gpus) == 1:
-        infer_action = RegressionNetwork().to(device)
+        infer_action = MultiClassClassificationModel().to(device)
         print("Using single GPU:", args.use_gpus[0])
     else:
-        infer_action = RegressionNetwork().to(device)
+        infer_action = MultiClassClassificationModel().to(device)
         print("Using CPU")
     
     # Define optimizer with learning rate scheduler
@@ -44,9 +44,7 @@ def train(args):
 
 
     # Constants
-    nr_epochs = 500
     best_loss = 10e10
-    batch_size = 512
     start_time = time.time()
 
     # Model Name
@@ -75,7 +73,7 @@ def train(args):
         infer_action.load_state_dict(torch.load(args.load_model_path).state_dict())
         print(f"Loaded Weights From: {args.load_model_path}")
 
-    criterion = torch.nn.MSELoss()
+    criterion = torch.nn.BCELoss() # We can use BCELossWithLogits() but will need to remove the sigmoid from the network
 
     # Training Loop
     for epoch in range(args.epochs):
@@ -87,7 +85,7 @@ def train(args):
             batch_out = infer_action(batch_in)
             loss = criterion(batch_out, batch_gt)
 
-            if loss >= 1e20:
+            if loss >= 1e20: # In case of Exploring Gradient, Ignore the Batch and don't backpropagate.
                 print(batch_in.min(), batch_in.max())
                 continue
             
@@ -97,7 +95,7 @@ def train(args):
             total_loss += loss
 
 
-            pbar.set_description(f"Loss: {total_loss:.3f}")
+            pbar.set_description(f"Loss: {loss:.3f}")
 
         scheduler.step(total_loss)
         time_per_epoch = (time.time() - start_time) / (epoch + 1)
