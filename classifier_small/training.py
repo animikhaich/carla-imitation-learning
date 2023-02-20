@@ -142,8 +142,8 @@ def cross_entropy_loss(batch_out, batch_gt):
     batch_gt:       torch.Tensor of size (batch_size, C)
     return          float
     """
-    loss = torch.nn.CrossEntropyLoss()
-    return loss(batch_out, batch_gt)
+    loss = torch.sum(-batch_gt * torch.log(batch_out), dim=1)
+    return loss
 
 def seconds_to_hms(seconds):
     m, s = divmod(seconds, 60)
