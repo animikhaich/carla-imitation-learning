@@ -82,9 +82,9 @@ def train(args):
         pbar = tqdm(enumerate(train_loader), total=len(train_loader), disable=args.disable_tqdm, ascii=True)
         for batch_idx, batch in pbar:
             batch_in, batch_gt = batch[0].to(device), batch[1].to(device)
+            print(batch_in.shape, batch_gt.shape)
             batch_out = infer_action(batch_in)
             loss = criterion(batch_out, batch_gt)
-
             if loss >= 1e20: # In case of Exploring Gradient, Ignore the Batch and don't backpropagate.
                 print(batch_in.min(), batch_in.max())
                 continue

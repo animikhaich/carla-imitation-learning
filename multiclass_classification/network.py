@@ -15,11 +15,11 @@ class MultiClassClassificationModel(torch.nn.Module):
 
     def init_model(self):
         self.model = torchvision.models.resnet34(weights='DEFAULT')
-        self.model.heads = torch.nn.Sequential(
+        self.model.fc = torch.nn.Sequential(
             torch.nn.Linear(self.model.fc.in_features, 64),
             nn.ReLU(),
 
-            nn.Linear(256, 4),
+            nn.Linear(64, 4),
             nn.Sigmoid(),
         )
 
