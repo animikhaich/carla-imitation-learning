@@ -5,7 +5,7 @@ import argparse
 
 import torch
 
-from network import MultiClassClassificationModel
+from network import ClassificationNetwork
 from dataset import CarlaDataset
 from torch.utils.tensorboard.writer import SummaryWriter
 from torch.utils.data import DataLoader
@@ -23,13 +23,13 @@ def train(args):
 
     # Choose Training Medium
     if device == 'cuda' and len(args.use_gpus) > 1:
-        infer_action = torch.nn.DataParallel(MultiClassClassificationModel(input_size=args.image_size), device_ids=args.use_gpus).to(device)
+        infer_action = torch.nn.DataParallel(ClassificationNetwork(input_size=args.image_size), device_ids=args.use_gpus).to(device)
         print("Using multiple GPUs:", args.use_gpus)
     elif device == 'cuda' and len(args.use_gpus) == 1:
-        infer_action = MultiClassClassificationModel().to(device)
+        infer_action = ClassificationNetwork(input_size=args.image_size).to(device)
         print("Using single GPU:", args.use_gpus[0])
     else:
-        infer_action = MultiClassClassificationModel().to(device)
+        infer_action = ClassificationNetwork(input_size=args.image_size).to(device)
         print("Using CPU")
     
     # Define optimizer with learning rate scheduler

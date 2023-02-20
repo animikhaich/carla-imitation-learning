@@ -32,10 +32,10 @@ def train(args):
         infer_action = torch.nn.DataParallel(RegressionNetwork(input_size=args.image_size), device_ids=args.use_gpus).to(device)
         print("Using multiple GPUs:", args.use_gpus)
     elif device == 'cuda' and len(args.use_gpus) == 1:
-        infer_action = RegressionNetwork().to(device)
+        infer_action = RegressionNetwork(input_size=args.image_size).to(device)
         print("Using single GPU:", args.use_gpus[0])
     else:
-        infer_action = RegressionNetwork().to(device)
+        infer_action = RegressionNetwork(input_size=args.image_size).to(device)
         print("Using CPU")
     
     # Define optimizer with learning rate scheduler
