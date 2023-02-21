@@ -56,6 +56,7 @@ class ClassificationNetwork(torch.nn.Module):
 
         self.clf = nn.Sequential(
             nn.Linear(225792, 2048),
+            nn.Dropout(0.5),
             nn.ReLU(),
 
             nn.Linear(2048, self.num_classes),

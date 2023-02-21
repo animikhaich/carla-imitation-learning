@@ -84,12 +84,28 @@ class CarlaDataset(Dataset):
         return    (image, action), both in torch.Tensor format
         """
         data = self.labels.iloc[idx]
+
         image = torchvision.io.read_image(os.path.join(self.data_dir, data.filename)) / 255.0
+
+        # Randomly flip image and steer angle with 50% probability (Augmentation)
+        flip = np.random.rand() > 0.5
+        if flip:
+            image = torchvision.transforms.functional.hflip(image)
+
+
         image = self.transform(image) if self.transform else image
 
-        action = self.actions_to_classes(data.throttle, data.steer, data.brake)
+        # Randomly flip steer angle with 50% probability (Augmentation)
+        if flip:
+            steer = -data.steer
+        else:
+            steer = data.steer
+
+        action = self.actions_to_classes(data.throttle, steer, data.brake)
+
         label = torch.tensor(self.action_to_idx[action])
         label = torch.nn.functional.one_hot(label, num_classes=len(self.action_to_idx))
+
 
         return (image, label.type(torch.DoubleTensor))
 
