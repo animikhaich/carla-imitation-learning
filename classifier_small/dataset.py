@@ -14,7 +14,7 @@ class CarlaDataset(Dataset):
     def __init__(self, data_dir, labels, transform=None, image_size=(96, 96)):
         self.data_dir = data_dir
         self.image_filenames = os.listdir(data_dir)
-        self.labels = pd.read_csv(labels)
+        self.labels = pd.read_csv(labels)[:30000]
         self.delta = 1e-3 # Defines the interval (+/-) where sensor margin of error is considered
         if transform:
             self.transform = transform
